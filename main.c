@@ -13,9 +13,9 @@
 
 
 //==============================
-// 定数宣言
+// 定数宣言 LITERAL
 //==============================
-
+#define ROAD_Y (V_SIZE >> 1)
 
 //==============================
 // 独自関数のプロトタイプ宣言 PROTOTYPE
@@ -25,21 +25,28 @@ void game_main(); // ゲームの関数
 void plot(int x, int y, int color);
 void fillBox(int x1, int y1, int x2, int y2, int color);
 void draw_line(int x1, int y1, int x2, int y2, int color);
-void ito_move_jiki();
-void ito_draw_jiki();
+void move_jiki();
+void draw_jiki();
 void draw_back();
 
 
 //==============================
 // 独自のグローバル変数の宣言 VALUE
 //==============================
-float ito_y;
-float ito_x;
-int ito_rising;	// 1なら上昇中
-int ito_direc_time;	// 上昇や下降を初めて経過したフレーム
 typedef struct Pos {
 	int x, y;
 } Pos;
+typedef struct FPos {
+	float x, y;
+} FPos;
+
+typedef struct Chara {
+	FPos p;		// 現在の場所
+	FPos p_prev; // 直前の場所
+	float f;	// 現在加えられている力
+	char isflying;	// 空中なら1
+} Chara;
+Chara jiki;
 
 
 //==============================
@@ -118,17 +125,34 @@ void fillBox(int x1, int y1, int x2, int y2, int color)
 }
 
 // 自機
-void ito_move_jiki() 
+void move_jiki() 
 {
-	if (!L_BTN) { ito_x-= 0.7; }
-	if (!R_BTN) { ito_x+= 0.7; }
-	if (!U_BTN) { ito_y-= 0.7; }
-	if (!D_BTN) { ito_y+= 0.7; }
+	float y_tmp;
+	if (!L_BTN) { jiki.p.x-= 0.7; }
+	if (!R_BTN) { jiki.p.x+= 0.7; }
+	//if (!D_BTN) { jiki.p.y+= 0.7; }
+	if (!U_BTN) {
+		if (!jiki.isflying) {
+			jiki.f = 7;
+			jiki.isflying = 1;
+		} else {
+			jiki.f = -1;
+		}
+	}
+
+	if (jiki.isflying) {
+		y_tmp = jiki.p.y;
+		jiki.p.y -= -(jiki.p.y - jiki.p_prev.y) + jiki.f;
+		jiki.p_prev.y = y_tmp;
+		if (jiki.p.y == ROAD_Y) {
+			jiki.isflying = 0;
+		}
+	}
 }
-void ito_draw_jiki()
+void draw_jiki()
 {
-	draw_line(20,20, ito_x, ito_y, 0x00);
-	fillBox(ito_x, ito_y, ito_x+1, ito_y+1, 0x30);
+	draw_line(20,20, jiki.p.x, jiki.p.y, 0x00);
+	fillBox(jiki.p.x, jiki.p.y, jiki.p.x+1, jiki.p.y+1, 0x30);
 }
 
 void draw_back()
@@ -141,8 +165,10 @@ void draw_back()
 //==============================
 void game_init()
 {
-	ito_x = 10;
-	ito_y = V_SIZE >> 1;
+	jiki.p.x = 10;
+	jiki.p.y = ROAD_Y;
+	jiki.p_prev.x = jiki.p.x;
+	jiki.p_prev.y = jiki.p.y;
 }
 
 //==============================
@@ -157,14 +183,14 @@ void game_main()
 	// バーが動く
 
 	// 自機をうごかす
-	ito_move_jiki();
+	move_jiki();
 
 	// 当たり判定
 	
 	// 画面クリア
 	draw_back();
 	// 自機を描く
-	ito_draw_jiki();
+	draw_jiki();
 	//draw_line(5,5, 40,50, 0x00);
 	//printf("end main().");
 }
