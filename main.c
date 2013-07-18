@@ -43,11 +43,10 @@ typedef struct FPos {
 typedef struct Chara {
 	FPos p;		// 現在の場所
 	FPos p_prev; // 直前の場所
-	float f;	// 現在加えられている力
+	FPos f;	// 現在加えられている力
 	char isflying;	// 空中なら1
 } Chara;
-Chara jiki;
-
+Chara jiki, tail;
 
 //==============================
 // 独自関数 FUNCTION
@@ -124,35 +123,87 @@ void fillBox(int x1, int y1, int x2, int y2, int color)
 	return;
 }
 
+void simu_chara_spring(Chara *obj)
+{
+	float *vec, *vec_prev, f;
+	float y_tmp, vy;
+	int i;
+
+	for (i=0; i<2; i++)
+	{
+		if (i==0) {
+			vec = &(obj->p.y);
+			vec_prev = &(obj->p_prev.y);
+			f = obj->f.y = 0.02*(*vec - jiki.p.y);
+		} else {
+			vec = &(obj->p.x);
+			vec_prev = &(obj->p_prev.x);
+			f = obj->f.x = 0.02*(*vec - jiki.p.x);
+		}
+
+		y_tmp = *vec;
+		vy = (-(*vec - *vec_prev) + f);
+		if (vy < -2 || vy > 2) {
+			vy = (*vec < *vec_prev) ? 2 : -2;
+		}
+		vy *= 0.98;
+		*vec -= vy;
+		*vec_prev = y_tmp;
+		//printf("%8.5f, %8.5f || ", *vec, *vec_prev);
+	}
+	//printf("%x,%x\n", &(obj.p.y), &(tail.p.y));
+}
+
+// 尻尾
+void move_tail()
+{
+	simu_chara_spring(&tail);
+	/*
+	float y_tmp, vy;
+	tail.f = 0.01*(tail.p.y - jiki.p.y);
+
+	y_tmp = tail.p.y;
+	vy = (-(tail.p.y - tail.p_prev.y) + tail.f);
+	if (vy < -1 || vy > 1) {
+		vy = (tail.p.y<tail.p_prev.y) ? 1 : -1;
+	}
+	tail.p.y -= vy;
+	tail.p_prev.y = y_tmp;
+	if (tail.p.y == ROAD_Y) {
+		tail.isflying = 0;
+	}
+	*/
+	
+}
 // 自機
 void move_jiki() 
 {
-	float y_tmp;
-	if (!L_BTN) { jiki.p.x-= 0.7; }
-	if (!R_BTN) { jiki.p.x+= 0.7; }
-	//if (!D_BTN) { jiki.p.y+= 0.7; }
-	if (!U_BTN) {
-		if (!jiki.isflying) {
-			jiki.f = 7;
-			jiki.isflying = 1;
-		} else {
-			jiki.f = -1;
-		}
-	}
+	float y_tmp, vy;
+	if (!L_BTN) { jiki.p.x -= 0.7; }
+	if (!R_BTN) { jiki.p.x += 0.7; }
+	if (!U_BTN) { jiki.p.y -= 0.7; }
+	if (!D_BTN) { jiki.p.y += 0.7; }
 
-	if (jiki.isflying) {
-		y_tmp = jiki.p.y;
-		jiki.p.y -= -(jiki.p.y - jiki.p_prev.y) + jiki.f;
-		jiki.p_prev.y = y_tmp;
-		if (jiki.p.y == ROAD_Y) {
-			jiki.isflying = 0;
-		}
+	/*
+	y_tmp = jiki.p.y;
+	vy =  -(jiki.p.y - jiki.p_prev.y) + jiki.f.y;
+	if (vy < -2 || vy > 2) {
+		vy = (jiki.p.y<jiki.p_prev.y) ? 2 : -2;
 	}
+	jiki.p.y -= vy;
+	jiki.p_prev.y = y_tmp;
+	if (jiki.p.y == ROAD_Y) {
+		jiki.isflying = 0;
+	}
+	*/
+
+	move_tail();
 }
 void draw_jiki()
 {
-	draw_line(20,20, jiki.p.x, jiki.p.y, 0x00);
+	draw_line(jiki.p.x, jiki.p.y, tail.p.x,tail.p.y, 0x00);
 	fillBox(jiki.p.x, jiki.p.y, jiki.p.x+1, jiki.p.y+1, 0x30);
+	fillBox(tail.p.x, tail.p.y, tail.p.x+1, tail.p.y+1, 0x0c);
 }
 
 void draw_back()
@@ -169,8 +220,11 @@ void game_init()
 	jiki.p.y = ROAD_Y;
 	jiki.p_prev.x = jiki.p.x;
 	jiki.p_prev.y = jiki.p.y;
+	tail.p_prev.x = jiki.p.x - 6;
+	tail.p_prev.y = jiki.p.y;
+	tail.p.x = tail.p_prev.x;
+	tail.p.y = tail.p_prev.y + 1;
 }
-
 //==============================
 // ゲームのメインの処理の関数 MAIN
 // 呼ばれた後、毎回disp_frame()が呼ばれている。
