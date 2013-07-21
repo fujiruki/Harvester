@@ -21,6 +21,13 @@
 #define ROAD_Y	(V_SIZE-PLAYER_H-3)
 #define PLAYER_X_DEF	5
 #define PLAYER_Y_DEF	ROAD_Y
+// FRUIT
+#define FRUITS_MAX	10				// フルーツの最大数
+#define FR_STATE_NONE	0		// Fruitがない
+#define FR_STATE_GREEN	1		// 青い小さい実
+#define FR_STATE_BIG	2		// 青い大きな実
+#define FR_STATE_RIPE	3		// 赤い大きな実(完熟)
+#define FR_STATE_DROPPING	4	// 落下中
 
 //==============================
 // 独自関数のプロトタイプ宣言 PROTOTYPE
@@ -30,15 +37,20 @@ void game_main(); // ゲームの関数
 void plot(int x, int y, int color);
 void fillBox(int x1, int y1, int x2, int y2, int color);
 void draw_line(int x1, int y1, int x2, int y2, int color);
+void draw_back();
+
 void move_harvester();
 void draw_harvester();
-void draw_back();
-void move_harvester();
 
+void set_fruit();
+void grow_fruits();	// フルーツを成長させる
+void drop_fruits();	// フルーツを落とす
+void draw_fruits();	// フルーツを描く
 
 //==============================
 // 独自のグローバル変数の宣言 VALUE
 //==============================
+//=== TYPE =====================
 typedef struct Pos {
 	int x, y;
 } Pos;
@@ -51,12 +63,10 @@ typedef struct FPos {
 
 // 果実
 typedef struct Fruit {
-	FPos p;		// 現在の場所
-	FPos p_prev; // 直前の場所
-	float f;	// 現在加えられている力
-	char isflying;	// 空中なら1
-	Pos basket;
-	Pos basket_size;	// 
+	FPos p;			// 現在の場所
+	FPos p_prev; 	// 直前の場所
+	float f;		// 現在加えられている力
+	unsigned char state;	// 果実、完熟、落下中
 } Fruit;
 
 // 収穫者
@@ -68,7 +78,10 @@ typedef struct Harvester {
 	Pos basket;
 	Pos basket_size;	// 
 } Harvester;
-Harvester hvester;	// 収穫者(プレイヤーが操作する)
+
+//=== VARIABLES =================
+Fruit fruits[FRUITS_MAX];	// フルーツ(時間経過で成長、落下する。収穫者でバウンド)
+Harvester hvester;			// 収穫者(プレイヤーが操作する)
 
 
 //==============================
@@ -190,9 +203,10 @@ void game_init()
 void game_main()
 {
 
-	// 
-
-
+	// フルーツを成長させる
+	grow_fruits();
+	// フルーツを落とす
+	drop_fruits();
 
 	// 自機をうごかす
 	move_harvester();
@@ -201,6 +215,8 @@ void game_main()
 	
 	// 画面クリア
 	draw_back();
+	// フルーツを描く
+	draw_fruits();
 	// 自機を描く
 	draw_harvester();
 	//draw_line(5,5, 40,50, 0x00);
