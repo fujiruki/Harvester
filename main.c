@@ -15,7 +15,12 @@
 //==============================
 // 定数宣言 LITERAL
 //==============================
-#define ROAD_Y (V_SIZE >> 1)
+#define PLAYER_W	8
+#define PLAYER_H	12
+#define PLAYER_SPEED	0.7
+#define ROAD_Y	(V_SIZE-PLAYER_H-3)
+#define PLAYER_X_DEF	5
+#define PLAYER_Y_DEF	ROAD_Y
 
 //==============================
 // 独自関数のプロトタイプ宣言 PROTOTYPE
@@ -25,9 +30,10 @@ void game_main(); // ゲームの関数
 void plot(int x, int y, int color);
 void fillBox(int x1, int y1, int x2, int y2, int color);
 void draw_line(int x1, int y1, int x2, int y2, int color);
-void move_jiki();
-void draw_jiki();
+void move_harvester();
+void draw_harvester();
 void draw_back();
+void move_harvester();
 
 
 //==============================
@@ -36,22 +42,44 @@ void draw_back();
 typedef struct Pos {
 	int x, y;
 } Pos;
+typedef struct Size {
+	int w, h;
+} Size;
 typedef struct FPos {
 	float x, y;
 } FPos;
 
-typedef struct Chara {
+// 果実
+typedef struct Fruit {
 	FPos p;		// 現在の場所
 	FPos p_prev; // 直前の場所
 	float f;	// 現在加えられている力
 	char isflying;	// 空中なら1
-} Chara;
-Chara jiki;
+	Pos basket;
+	Pos basket_size;	// 
+} Fruit;
+
+// 収穫者
+typedef struct Harvester {
+	FPos p;		// 現在の場所
+	FPos p_prev; // 直前の場所
+	float f;	// 現在加えられている力
+	char isflying;	// 空中なら1
+	Pos basket;
+	Pos basket_size;	// 
+} Harvester;
+Harvester hvester;	// 収穫者(プレイヤーが操作する)
 
 
 //==============================
 // 独自関数 FUNCTION
 //==============================
+void draw_harvester()
+{
+	fillBox(hvester.p.x, hvester.p.y,
+			hvester.p.x + PLAYER_W, hvester.p.y + PLAYER_H, 0xa8);
+}
+
 void plot(int x, int y, int color)
 {
 	if (0 <= x && x < H_SIZE && 0<=y && y < V_SIZE)
@@ -124,36 +152,20 @@ void fillBox(int x1, int y1, int x2, int y2, int color)
 	return;
 }
 
-// 自機
-void move_jiki() 
+void move_harvester()
 {
-	float y_tmp;
-	if (!L_BTN) { jiki.p.x-= 0.7; }
-	if (!R_BTN) { jiki.p.x+= 0.7; }
-	//if (!D_BTN) { jiki.p.y+= 0.7; }
-	if (!U_BTN) {
-		if (!jiki.isflying) {
-			jiki.f = 7;
-			jiki.isflying = 1;
-		} else {
-			jiki.f = -1;
-		}
-	}
+	FPos p_tmp;
+	p_tmp.x = hvester.p.x;
+	p_tmp.y = hvester.p.y;
 
-	if (jiki.isflying) {
-		y_tmp = jiki.p.y;
-		jiki.p.y -= -(jiki.p.y - jiki.p_prev.y) + jiki.f;
-		jiki.p_prev.y = y_tmp;
-		if (jiki.p.y == ROAD_Y) {
-			jiki.isflying = 0;
-		}
-	}
+	if (!R_BTN) { hvester.p.x += PLAYER_SPEED; }
+	if (!L_BTN) { hvester.p.x -= PLAYER_SPEED; }
+
+
+	hvester.p_prev.x = p_tmp.x;
+	hvester.p_prev.y = p_tmp.y;
 }
-void draw_jiki()
-{
-	draw_line(20,20, jiki.p.x, jiki.p.y, 0x00);
-	fillBox(jiki.p.x, jiki.p.y, jiki.p.x+1, jiki.p.y+1, 0x30);
-}
+
 
 void draw_back()
 {
@@ -165,10 +177,10 @@ void draw_back()
 //==============================
 void game_init()
 {
-	jiki.p.x = 10;
-	jiki.p.y = ROAD_Y;
-	jiki.p_prev.x = jiki.p.x;
-	jiki.p_prev.y = jiki.p.y;
+	hvester.p.x = PLAYER_X_DEF;
+	hvester.p.y = PLAYER_Y_DEF;
+	hvester.p_prev.x = hvester.p.x;
+	hvester.p_prev.y = hvester.p.y;
 }
 
 //==============================
@@ -178,19 +190,19 @@ void game_init()
 void game_main()
 {
 
+	// 
 
 
-	// バーが動く
 
 	// 自機をうごかす
-	move_jiki();
+	move_harvester();
 
 	// 当たり判定
 	
 	// 画面クリア
 	draw_back();
 	// 自機を描く
-	draw_jiki();
+	draw_harvester();
 	//draw_line(5,5, 40,50, 0x00);
 	//printf("end main().");
 }
