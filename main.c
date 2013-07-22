@@ -237,7 +237,7 @@ void grow_fruits()
 			case FR_STATE_GREEN:
 				if (fruits[i].state_cnt == 0) {
 					fruits[i].state++;	// BIGになる
-					fruits[i].state_cnt = (rand() & 0x03)+2;
+					fruits[i].state_cnt = (rand() & 0x03)+1;
 					printf("SET GREEN: %d\n", fruits[i].state_cnt);
 				}
 				break;
@@ -252,6 +252,8 @@ void grow_fruits()
 				if (fruits[i].state_cnt == 0) {
 					fruits[i].state++;	// DROPPINGになる
 					fruits[i].state_cnt = (rand() & 0x01)+1;
+					fruits[i].f = 0.14;
+					fruits[i].p_prev.y = fruits[i].p.y;
 					printf("START DROP: %d\n", fruits[i].state_cnt);
 				}
 				break;
@@ -277,10 +279,10 @@ void draw_fruits() {
 				fillBox(fruits[i].p.x-1, fruits[i].p.y, fruits[i].p.x+1, fruits[i].p.y+2, 0x74);
 				break;
 			case FR_STATE_RIPE:
-				fillBox(fruits[i].p.x-1, fruits[i].p.y, fruits[i].p.x+1, fruits[i].p.y+2, 0x74);
+				fillBox(fruits[i].p.x-1, fruits[i].p.y, fruits[i].p.x+1, fruits[i].p.y+2, 0x30);
 				break;
 			case FR_STATE_DROPPING:
-				fillBox(fruits[i].p.x-1, fruits[i].p.y, fruits[i].p.x+1, fruits[i].p.y+2, 0x30);
+				fillBox(fruits[i].p.x-1, fruits[i].p.y, fruits[i].p.x+1, fruits[i].p.y+2, 0x20);
 				break;
 			default:	// どれでもなくなったとき
 				break;
@@ -291,15 +293,16 @@ void draw_fruits() {
 // フルーツを落とす
 void drop_fruits() {
 	int i;
-	float y_tmp;
+	float y_tmp, vy;
 	for (i=0; i<FRUITS_MAX; i++) {
 		if (fruits[i].state != FR_STATE_DROPPING) {
 			continue;
 		}
 
 		y_tmp = fruits[i].p.y;
-		fruits[i].p.y += 0.6;
-
+		vy = (fruits[i].p.y - fruits[i].p_prev.y) + fruits[i].f;
+		if (vy > 2.5) { vy = 2.5; }
+		fruits[i].p.y += vy;
 		fruits[i].p_prev.y = y_tmp;
 	}
 }
