@@ -60,6 +60,10 @@ typedef struct Size {
 typedef struct FPos {
 	float x, y;
 } FPos;
+typedef struct LevelConf {
+	unsigned char level;	// 現在のレベル
+	char fruits_n;	// 現在の果実の最大数
+} LevelConf;
 
 // 果実
 typedef struct Fruit {
@@ -67,6 +71,7 @@ typedef struct Fruit {
 	FPos p_prev; 	// 直前の場所
 	float f;		// 現在加えられている力
 	unsigned char state;	// 果実、完熟、落下中
+	unsigned int state_cnt;
 } Fruit;
 
 // 収穫者
@@ -80,18 +85,16 @@ typedef struct Harvester {
 } Harvester;
 
 //=== VARIABLES =================
+#define LCOUNT_FRUITS_GROW	5
+unsigned int lcnt_fruits_grow;
 Fruit fruits[FRUITS_MAX];	// フルーツ(時間経過で成長、落下する。収穫者でバウンド)
 Harvester hvester;			// 収穫者(プレイヤーが操作する)
+LevelConf conf;
 
 
 //==============================
 // 独自関数 FUNCTION
 //==============================
-void draw_harvester()
-{
-	fillBox(hvester.p.x, hvester.p.y,
-			hvester.p.x + PLAYER_W, hvester.p.y + PLAYER_H, 0xa8);
-}
 
 void plot(int x, int y, int color)
 {
@@ -178,6 +181,21 @@ void move_harvester()
 	hvester.p_prev.x = p_tmp.x;
 	hvester.p_prev.y = p_tmp.y;
 }
+void draw_harvester()
+{
+	fillBox(hvester.p.x, hvester.p.y,
+			hvester.p.x + PLAYER_W, hvester.p.y + PLAYER_H, 0xa8);
+}
+
+//fruiti番目のフルーツをセットする
+void set_fruit(int fruiti)
+{
+	// fruits
+	fruits[fruiti].p.x = rand() & 0x3f;
+	fruits[fruiti].p.y = rand() & 0x03;
+	fruits[fruiti].state = FR_STATE_NONE+1;
+	fruits[fruiti].state_cnt = rand() & 0x0f +1;
+}
 
 
 void draw_back()
@@ -190,21 +208,113 @@ void draw_back()
 //==============================
 void game_init()
 {
+	int i;
+
+	lcnt_fruits_grow = 0;
+
+
 	hvester.p.x = PLAYER_X_DEF;
 	hvester.p.y = PLAYER_Y_DEF;
 	hvester.p_prev.x = hvester.p.x;
 	hvester.p_prev.y = hvester.p.y;
+
+	for (i=0; i<FRUITS_MAX; i++) {
+		fruits[i].state = FR_STATE_NONE;
+	}
+	set_fruit(0);
+
+	conf.level = 1;
+	conf.fruits_n = 1;
 }
 
+void grow_fruits()
+{
+	int i;
+	for (i=0; i<FRUITS_MAX; i++) {
+		switch (fruits[i].state) {
+			case FR_STATE_NONE:
+				break;
+			case FR_STATE_GREEN:
+				if (fruits[i].state_cnt == 0) {
+					fruits[i].state++;	// BIGになる
+					fruits[i].state_cnt = (rand() & 0x03)+2;
+					printf("SET GREEN: %d\n", fruits[i].state_cnt);
+				}
+				break;
+			case FR_STATE_BIG:
+				if (fruits[i].state_cnt == 0) {
+					fruits[i].state++;	// RIPEになる
+					fruits[i].state_cnt = (rand() & 0x03)+1;
+					printf("SET BIG: %d\n", fruits[i].state_cnt);
+				}
+				break;
+			case FR_STATE_RIPE:
+				if (fruits[i].state_cnt == 0) {
+					fruits[i].state++;	// DROPPINGになる
+					fruits[i].state_cnt = (rand() & 0x01)+1;
+					printf("START DROP: %d\n", fruits[i].state_cnt);
+				}
+				break;
+			//case FR_STATE_DROPPING:	別の関数で。
+				//break;
+			default:	// どれでもなくなったとき
+				break;
+		}
+		fruits[i].state_cnt--;
+	}
+}
+// フルーツを描く
+void draw_fruits() {
+	int i;
+	for (i=0; i<FRUITS_MAX; i++) {
+		switch (fruits[i].state) {
+			case FR_STATE_NONE:
+				break;
+			case FR_STATE_GREEN:
+				plot(fruits[i].p.x, fruits[i].p.y, 0x94);
+				break;
+			case FR_STATE_BIG:
+				fillBox(fruits[i].p.x-1, fruits[i].p.y, fruits[i].p.x+1, fruits[i].p.y+2, 0x74);
+				break;
+			case FR_STATE_RIPE:
+				fillBox(fruits[i].p.x-1, fruits[i].p.y, fruits[i].p.x+1, fruits[i].p.y+2, 0x74);
+				break;
+			case FR_STATE_DROPPING:
+				fillBox(fruits[i].p.x-1, fruits[i].p.y, fruits[i].p.x+1, fruits[i].p.y+2, 0x30);
+				break;
+			default:	// どれでもなくなったとき
+				break;
+		}
+	}
+}
+
+// フルーツを落とす
+void drop_fruits() {
+	int i;
+	float y_tmp;
+	for (i=0; i<FRUITS_MAX; i++) {
+		if (fruits[i].state != FR_STATE_DROPPING) {
+			continue;
+		}
+
+		y_tmp = fruits[i].p.y;
+		fruits[i].p.y += 0.6;
+
+		fruits[i].p_prev.y = y_tmp;
+	}
+}
 //==============================
 // ゲームのメインの処理の関数 MAIN
 // 呼ばれた後、毎回disp_frame()が呼ばれている。
 //==============================
 void game_main()
 {
-
+	if (!BTN1) { set_fruit(0); }
 	// フルーツを成長させる
-	grow_fruits();
+	if (++lcnt_fruits_grow == LCOUNT_FRUITS_GROW) {
+		lcnt_fruits_grow = 0;
+		grow_fruits();
+	}
 	// フルーツを落とす
 	drop_fruits();
 
