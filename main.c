@@ -41,6 +41,7 @@ void draw_back();
 
 void move_harvester();
 void draw_harvester();
+void draw_basket();
 
 void set_fruit();
 void grow_fruits();	// フルーツを成長させる
@@ -80,9 +81,14 @@ typedef struct Harvester {
 	FPos p_prev; // 直前の場所
 	float f;	// 現在加えられている力
 	char isflying;	// 空中なら1
-	Pos basket;
-	Pos basket_size;	// 
+	char turnRight;		// 向き。1なら右、それ以外で左向き
 } Harvester;
+
+// カゴ
+typedef struct Basket {
+	Pos p;
+	Size size;
+} Basket;
 
 //=== VARIABLES =================
 #define LCOUNT_FRUITS_GROW	5
@@ -90,6 +96,7 @@ unsigned int lcnt_fruits_grow;
 Fruit fruits[FRUITS_MAX];	// フルーツ(時間経過で成長、落下する。収穫者でバウンド)
 Harvester hvester;			// 収穫者(プレイヤーが操作する)
 LevelConf conf;
+Basket basket;
 
 
 //==============================
@@ -174,8 +181,14 @@ void move_harvester()
 	p_tmp.x = hvester.p.x;
 	p_tmp.y = hvester.p.y;
 
-	if (!R_BTN) { hvester.p.x += PLAYER_SPEED; }
-	if (!L_BTN) { hvester.p.x -= PLAYER_SPEED; }
+	if (!R_BTN) {
+		hvester.p.x += PLAYER_SPEED;
+		hvester.turnRight = 1;
+	}
+	if (!L_BTN) {
+	 	hvester.p.x -= PLAYER_SPEED;
+		hvester.turnRight = 0;
+	}
 
 
 	hvester.p_prev.x = p_tmp.x;
@@ -185,6 +198,19 @@ void draw_harvester()
 {
 	fillBox(hvester.p.x, hvester.p.y,
 			hvester.p.x + PLAYER_W, hvester.p.y + PLAYER_H, 0xa8);
+}
+
+void draw_basket()
+{
+	if (hvester.turnRight == 1) {
+		basket.p.x = hvester.p.x - basket.size.w - 1;
+	} else {
+		basket.p.x = hvester.p.x  + PLAYER_W;	//hvester.size.w;
+	}
+
+	draw_line(basket.p.x, basket.p.y, basket.p.x, basket.p.y + basket.size.h, 0x50);
+	draw_line(basket.p.x+basket.size.w, basket.p.y, basket.p.x+basket.size.w, basket.p.y + basket.size.h, 0x50);
+	draw_line(basket.p.x, basket.p.y + basket.size.h, basket.p.x+basket.size.w, basket.p.y + basket.size.h, 0x50);
 }
 
 //fruiti番目のフルーツをセットする
@@ -212,11 +238,15 @@ void game_init()
 
 	lcnt_fruits_grow = 0;
 
-
 	hvester.p.x = PLAYER_X_DEF;
 	hvester.p.y = PLAYER_Y_DEF;
 	hvester.p_prev.x = hvester.p.x;
 	hvester.p_prev.y = hvester.p.y;
+	hvester.turnRight = 1;
+	basket.p.y = hvester.p.y + 1;
+	basket.size.w = 4;
+	basket.size.h = 8;
+	draw_basket();
 
 	for (i=0; i<FRUITS_MAX; i++) {
 		fruits[i].state = FR_STATE_NONE;
@@ -330,6 +360,7 @@ void game_main()
 	draw_back();
 	// フルーツを描く
 	draw_fruits();
+	draw_basket();
 	// 自機を描く
 	draw_harvester();
 	//draw_line(5,5, 40,50, 0x00);
