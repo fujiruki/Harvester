@@ -269,6 +269,10 @@ void move_harvester() {
 void draw_harvester() {
 	fillBox(hvester.p.x, hvester.p.y,
 			hvester.p.x + PLAYER_W, hvester.p.y + PLAYER_H, HVESTER_COLOR);
+	plot(hvester.p.x+4, hvester.p.y, 0xff);
+	plot(hvester.p.x, hvester.p.y, 0xff);
+	plot(hvester.p.x+4, hvester.p.y+5, 0xff);
+	plot(hvester.p.x+3, hvester.p.y+5, 0xd4);
 }
 
 
