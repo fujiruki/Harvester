@@ -45,7 +45,7 @@
 
 #define BDISP_X 0
 #define BDISP_Y 0
-#define BDISP_W 640
+#define BDISP_W 480
 #define BDISP_H 480
 #define BDEBUG_X 0
 #define BDEBUG_Y (BDISP_H+10)
@@ -55,8 +55,10 @@
 #define BCONTROL_Y 0
 #define BCONTROL_W 200
 #define BCONTROL_H (BDISP_H+BDEBUG_H+10)
-#define WINDOW_W	(BDISP_W+BCONTROL_W)
-#define WINDOW_H	(BDISP_H+BDEBUG_W)
+//#define WINDOW_W	(BDISP_W+BCONTROL_W)
+//#define WINDOW_H	(BDISP_H+BDEBUG_W)
+#define WINDOW_W	BDISP_W
+#define WINDOW_H	BDISP_H
 
 //== キーコンフィグ ==
 #define KEY_BTN1	'j'

@@ -15,9 +15,10 @@
 //==============================
 // 定数宣言 LITERAL
 //==============================
-#define PLAYER_W	8
-#define PLAYER_H	12
-#define PLAYER_SPEED	0.7
+#define chat_UP	5			// チャタリング防止用の空回しループ回数
+#define PLAYER_W	5
+#define PLAYER_H	11
+#define PLAYER_SPEED	0.9
 #define ROAD_Y	(V_SIZE-PLAYER_H-3)
 #define PLAYER_X_DEF	5
 #define PLAYER_Y_DEF	ROAD_Y
@@ -39,11 +40,16 @@ void fillBox(int x1, int y1, int x2, int y2, int color);
 void draw_line(int x1, int y1, int x2, int y2, int color);
 void draw_back();
 
+void loop_chatter(unsigned char *counter, char *flag);	// counterをデクリメントして0ならflagを0にする
+
+void check_level();
+void check_collision();	// 
+
 void move_harvester();
 void draw_harvester();
 void draw_basket();
 
-void set_fruit();
+void set_fruit(int fruiti);	// 指定の番号にフルーツを作成する
 void grow_fruits();	// フルーツを成長させる
 void drop_fruits();	// フルーツを落とす
 void draw_fruits();	// フルーツを描く
@@ -63,7 +69,9 @@ typedef struct FPos {
 } FPos;
 typedef struct LevelConf {
 	unsigned char level;	// 現在のレベル
+	unsigned char level_prev;	// 直前までのレベル(変化を確認するため)
 	char fruits_n;	// 現在の果実の最大数
+	char fruits_n_prev;	// 直前までのレベル(変化を確認するため)
 } LevelConf;
 
 // 果実
@@ -97,21 +105,27 @@ Fruit fruits[FRUITS_MAX];	// フルーツ(時間経過で成長、落下する�
 Harvester hvester;			// 収穫者(プレイヤーが操作する)
 LevelConf conf;
 Basket basket;
+unsigned char cloop_u_btn;	// loop for chatterring
+unsigned char cloop_d_btn;
+char C_U_BTN;			// チャタリング対策済みボタン変数(credible)
+char C_D_BTN;
+char C_L_BTN;
+char C_R_BTN;
+char C_BTN1;
+char C_BTN2;
 
 
 //==============================
 // 独自関数 FUNCTION
 //==============================
 
-void plot(int x, int y, int color)
-{
+void plot(int x, int y, int color) {
 	if (0 <= x && x < H_SIZE && 0<=y && y < V_SIZE)
 	{
 		pat[y][x] = color;
 	}
 }
-void draw_line(int x1, int y1, int x2, int y2, int color)
-{
+void draw_line(int x1, int y1, int x2, int y2, int color) {
 	// 参考:http://fussy.web.fc2.com/algo/algo1-1.htm
 	int i;
 	Pos dist, direc;	// 2点間距離、方向
@@ -152,9 +166,7 @@ void draw_line(int x1, int y1, int x2, int y2, int color)
 		}
 	}
 }
-
-void fillBox(int x1, int y1, int x2, int y2, int color)
-{
+void fillBox(int x1, int y1, int x2, int y2, int color) {
 	int i, j;
 
 	//全部はみ出ていれば、なにもしない。
@@ -175,8 +187,48 @@ void fillBox(int x1, int y1, int x2, int y2, int color)
 	return;
 }
 
-void move_harvester()
-{
+void check_level() {
+	char next_fru_n;
+	char i;
+
+	if (conf.level == conf.level_prev) { return; }
+	conf.level_prev = conf.level;
+
+	switch (conf.level)
+	{
+		case 1:
+			next_fru_n = 1;
+			break;
+		case 2:
+			next_fru_n = 3;
+			break;
+		case 3:
+			next_fru_n = 4;
+			break;
+		case 4:
+			next_fru_n = 6;
+			break;
+		case 5:
+			next_fru_n = 8;
+			break;
+		case 6:
+			next_fru_n = FRUITS_MAX;
+			break;
+		case 7:
+			break;
+		case 8:
+			break;
+	}
+
+	for (i=conf.fruits_n; i<next_fru_n; i++) {
+		// フルーツ数が増えたら増やす
+		set_fruit(i);
+	}
+
+	conf.fruits_n = next_fru_n;
+}
+
+void move_harvester() {
 	FPos p_tmp;
 	p_tmp.x = hvester.p.x;
 	p_tmp.y = hvester.p.y;
@@ -194,14 +246,12 @@ void move_harvester()
 	hvester.p_prev.x = p_tmp.x;
 	hvester.p_prev.y = p_tmp.y;
 }
-void draw_harvester()
-{
+void draw_harvester() {
 	fillBox(hvester.p.x, hvester.p.y,
 			hvester.p.x + PLAYER_W, hvester.p.y + PLAYER_H, 0xa8);
 }
 
-void draw_basket()
-{
+void draw_basket() {
 	if (hvester.turnRight == 1) {
 		basket.p.x = hvester.p.x - basket.size.w - 1;
 	} else {
@@ -214,68 +264,38 @@ void draw_basket()
 }
 
 //fruiti番目のフルーツをセットする
-void set_fruit(int fruiti)
-{
+void set_fruit(int fruiti) {
 	// fruits
 	fruits[fruiti].p.x = rand() & 0x3f;
 	fruits[fruiti].p.y = rand() & 0x03;
-	fruits[fruiti].state = FR_STATE_NONE+1;
+	fruits[fruiti].state = FR_STATE_NONE;
 	fruits[fruiti].state_cnt = rand() & 0x0f +1;
 }
 
-
-void draw_back()
-{
+void draw_back() {
 	fillBox(0, 0, H_SIZE, V_SIZE, 0xff);
 }
 
-//==============================
-// ゲームの初期化関数 INIT
-//==============================
-void game_init()
-{
+void grow_fruits() {
 	int i;
-
-	lcnt_fruits_grow = 0;
-
-	hvester.p.x = PLAYER_X_DEF;
-	hvester.p.y = PLAYER_Y_DEF;
-	hvester.p_prev.x = hvester.p.x;
-	hvester.p_prev.y = hvester.p.y;
-	hvester.turnRight = 1;
-	basket.p.y = hvester.p.y + 1;
-	basket.size.w = 4;
-	basket.size.h = 8;
-	draw_basket();
-
-	for (i=0; i<FRUITS_MAX; i++) {
-		fruits[i].state = FR_STATE_NONE;
-	}
-	set_fruit(0);
-
-	conf.level = 1;
-	conf.fruits_n = 1;
-}
-
-void grow_fruits()
-{
-	int i;
-	for (i=0; i<FRUITS_MAX; i++) {
+	for (i=0; i<conf.fruits_n; i++) {
 		switch (fruits[i].state) {
 			case FR_STATE_NONE:
+				if (fruits[i].state_cnt == 0) {
+					fruits[i].state++;	// GREENになる
+					fruits[i].state_cnt = (rand() & 0x03)+2;
+				}
 				break;
 			case FR_STATE_GREEN:
 				if (fruits[i].state_cnt == 0) {
 					fruits[i].state++;	// BIGになる
 					fruits[i].state_cnt = (rand() & 0x03)+1;
-					printf("SET GREEN: %d\n", fruits[i].state_cnt);
 				}
 				break;
 			case FR_STATE_BIG:
 				if (fruits[i].state_cnt == 0) {
 					fruits[i].state++;	// RIPEになる
 					fruits[i].state_cnt = (rand() & 0x03)+1;
-					printf("SET BIG: %d\n", fruits[i].state_cnt);
 				}
 				break;
 			case FR_STATE_RIPE:
@@ -284,7 +304,6 @@ void grow_fruits()
 					fruits[i].state_cnt = (rand() & 0x01)+1;
 					fruits[i].f = 0.14;
 					fruits[i].p_prev.y = fruits[i].p.y;
-					printf("START DROP: %d\n", fruits[i].state_cnt);
 				}
 				break;
 			//case FR_STATE_DROPPING:	別の関数で。
@@ -298,7 +317,7 @@ void grow_fruits()
 // フルーツを描く
 void draw_fruits() {
 	int i;
-	for (i=0; i<FRUITS_MAX; i++) {
+	for (i=0; i<conf.fruits_n; i++) {
 		switch (fruits[i].state) {
 			case FR_STATE_NONE:
 				break;
@@ -334,15 +353,104 @@ void drop_fruits() {
 		if (vy > 2.5) { vy = 2.5; }
 		fruits[i].p.y += vy;
 		fruits[i].p_prev.y = y_tmp;
+
+		// 画面外に出たら種にもどる
+		if (fruits[i].p.y >= V_SIZE) {
+			set_fruit(i);
+			continue;
+		}
+	}
+	
+}
+
+//==============================
+// ゲームの初期化関数 INIT
+//==============================
+void game_init()
+{
+	int i;
+
+	// チャタリング対策済みボタン変数
+	C_U_BTN = 1;
+	C_D_BTN = 1;
+	C_L_BTN = 1;
+	C_R_BTN = 1;
+	C_BTN1 = 1;
+	C_BTN2 = 1;
+	cloop_u_btn = 0;		// チャタリング防止用
+	cloop_d_btn = 0;		// チャタリング防止用
+
+	lcnt_fruits_grow = 0;
+
+	hvester.p.x = PLAYER_X_DEF;
+	hvester.p.y = PLAYER_Y_DEF;
+	hvester.p_prev.x = hvester.p.x;
+	hvester.p_prev.y = hvester.p.y;
+	hvester.turnRight = 1;
+	basket.p.y = hvester.p.y + 1;
+	basket.size.w = 6;
+	basket.size.h = 8;
+	draw_basket();
+
+	for (i=0; i<FRUITS_MAX; i++) {
+		fruits[i].state = FR_STATE_NONE;
+	}
+	set_fruit(0);
+
+	conf.level = 1;
+}
+
+// counterが1以上なら1減らし、
+// 0になったらflagを0にする
+void loop_chatter(unsigned char *counter, char *flag) {
+	if (*counter > 0) {
+		(*counter)--;
+		if (*counter == 0) {
+			// U_BTNが確定した
+			*flag  = 0;
+		}
 	}
 }
+
 //==============================
 // ゲームのメインの処理の関数 MAIN
 // 呼ばれた後、毎回disp_frame()が呼ばれている。
 //==============================
+unsigned char tmp=5;
+char tmpf=1;
 void game_main()
 {
+	unsigned char *counter;
+	char *flag;
 	if (!BTN1) { set_fruit(0); }
+	if (!U_BTN && cloop_u_btn==0) {
+		cloop_u_btn = chat_UP;
+		printf("set chat_UP\n");
+	}
+	loop_chatter(&cloop_u_btn, &C_U_BTN);
+	loop_chatter(&cloop_d_btn, &C_U_BTN);
+
+	// U_BTNが押されたら(チャタリング対策済み)
+	// レベルを上げる
+	if (!C_U_BTN) {
+		C_U_BTN = 1;
+		if (conf.level < 8) {
+			conf.level++;
+		}
+		printf("U_BTN CREDIBLE\n");
+	}
+	if (!C_D_BTN) {
+		C_D_BTN = 1;
+		if (conf.level > 1) {
+			conf.level--;
+		}
+		printf("D_BTN CREDIBLE\n");
+	}
+
+	check_level();
+
+
+
 	// フルーツを成長させる
 	if (++lcnt_fruits_grow == LCOUNT_FRUITS_GROW) {
 		lcnt_fruits_grow = 0;
@@ -355,6 +463,7 @@ void game_main()
 	move_harvester();
 
 	// 当たり判定
+	check_collision();
 	
 	// 画面クリア
 	draw_back();
