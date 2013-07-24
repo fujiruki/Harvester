@@ -19,9 +19,13 @@
 #define PLAYER_W	5
 #define PLAYER_H	11
 #define PLAYER_SPEED	0.9
+
 #define ROAD_Y	(V_SIZE-PLAYER_H-3)
 #define PLAYER_X_DEF	5
 #define PLAYER_Y_DEF	ROAD_Y
+#define HVESTER_COLOR	0x70
+#define BASKET_FRAME_COLOR	0x10	// バスケットのフレームの色
+#define BASKET_COLOR	0x60	// バスケットのフレームの色
 // FRUIT
 #define FRUITS_MAX	10				// フルーツの最大数
 #define FR_STATE_NONE	0		// Fruitがない
@@ -29,6 +33,11 @@
 #define FR_STATE_BIG	2		// 青い大きな実
 #define FR_STATE_RIPE	3		// 赤い大きな実(完熟)
 #define FR_STATE_DROPPING	4	// 落下中
+#define FR_RIPE_R			1		// フルーツの半径
+#define FR_RIPE_DIA			2		// フルーツの直径	//Diameter
+#define FR_COLOR_RIPE	0x30	// RIPEの色
+#define FR_DROPPING_F	0.14	// 落下中のフルーツへかかる力
+#define FR_BOUND_F		(-1.3)	// 落下中のフルーツへかかる力
 
 //==============================
 // 独自関数のプロトタイプ宣言 PROTOTYPE
@@ -43,11 +52,13 @@ void draw_back();
 void loop_chatter(unsigned char *counter, char *flag);	// counterをデクリメントして0ならflagを0にする
 
 void check_level();
-void check_collision();	// 
+void check_collision_fruits();	// フルーツとの当たり判定
 
 void move_harvester();
 void draw_harvester();
 void draw_basket();
+
+void move_basket();
 
 void set_fruit(int fruiti);	// 指定の番号にフルーツを作成する
 void grow_fruits();	// フルーツを成長させる
@@ -113,6 +124,7 @@ char C_L_BTN;
 char C_R_BTN;
 char C_BTN1;
 char C_BTN2;
+unsigned int score;
 
 
 //==============================
@@ -228,6 +240,14 @@ void check_level() {
 	conf.fruits_n = next_fru_n;
 }
 
+void move_basket() {
+	if (hvester.turnRight == 1) {
+		basket.p.x = hvester.p.x - basket.size.w - 1;
+	} else {
+		basket.p.x = hvester.p.x  + PLAYER_W;	//hvester.size.w;
+	}
+}
+
 void move_harvester() {
 	FPos p_tmp;
 	p_tmp.x = hvester.p.x;
@@ -248,19 +268,15 @@ void move_harvester() {
 }
 void draw_harvester() {
 	fillBox(hvester.p.x, hvester.p.y,
-			hvester.p.x + PLAYER_W, hvester.p.y + PLAYER_H, 0xa8);
+			hvester.p.x + PLAYER_W, hvester.p.y + PLAYER_H, HVESTER_COLOR);
 }
 
-void draw_basket() {
-	if (hvester.turnRight == 1) {
-		basket.p.x = hvester.p.x - basket.size.w - 1;
-	} else {
-		basket.p.x = hvester.p.x  + PLAYER_W;	//hvester.size.w;
-	}
 
-	draw_line(basket.p.x, basket.p.y, basket.p.x, basket.p.y + basket.size.h, 0x50);
-	draw_line(basket.p.x+basket.size.w, basket.p.y, basket.p.x+basket.size.w, basket.p.y + basket.size.h, 0x50);
-	draw_line(basket.p.x, basket.p.y + basket.size.h, basket.p.x+basket.size.w, basket.p.y + basket.size.h, 0x50);
+void draw_basket() {
+	draw_line(basket.p.x, basket.p.y, basket.p.x, basket.p.y + basket.size.h, BASKET_FRAME_COLOR);
+	draw_line(basket.p.x+basket.size.w, basket.p.y, basket.p.x+basket.size.w, basket.p.y + basket.size.h, BASKET_FRAME_COLOR);
+	draw_line(basket.p.x, basket.p.y + basket.size.h, basket.p.x+basket.size.w, basket.p.y + basket.size.h, BASKET_FRAME_COLOR);
+	fillBox(basket.p.x+1, basket.p.y, basket.p.x+basket.size.w, basket.p.y + basket.size.h, BASKET_COLOR);
 }
 
 //fruiti番目のフルーツをセットする
@@ -273,7 +289,21 @@ void set_fruit(int fruiti) {
 }
 
 void draw_back() {
+	int i;
 	fillBox(0, 0, H_SIZE, V_SIZE, 0xff);
+
+	// カラースケール
+	for (i=0; i<0x3f;i++) {
+		if (i < 60) {
+			plot(i, 1, i<<2);
+			plot(i, 0, (i&1)?0xff:0x00);
+			if (i%10==0) {
+				plot(i, 0, 0x30);
+			}
+		} else {
+			plot(i-60, 2, i<<2);
+		}
+	}
 }
 
 void grow_fruits() {
@@ -302,7 +332,7 @@ void grow_fruits() {
 				if (fruits[i].state_cnt == 0) {
 					fruits[i].state++;	// DROPPINGになる
 					fruits[i].state_cnt = (rand() & 0x01)+1;
-					fruits[i].f = 0.14;
+					fruits[i].f = FR_DROPPING_F;
 					fruits[i].p_prev.y = fruits[i].p.y;
 				}
 				break;
@@ -328,10 +358,10 @@ void draw_fruits() {
 				fillBox(fruits[i].p.x-1, fruits[i].p.y, fruits[i].p.x+1, fruits[i].p.y+2, 0x74);
 				break;
 			case FR_STATE_RIPE:
-				fillBox(fruits[i].p.x-1, fruits[i].p.y, fruits[i].p.x+1, fruits[i].p.y+2, 0x30);
+				fillBox(fruits[i].p.x-FR_RIPE_R, fruits[i].p.y, fruits[i].p.x+FR_RIPE_R, fruits[i].p.y+2, FR_COLOR_RIPE);
 				break;
 			case FR_STATE_DROPPING:
-				fillBox(fruits[i].p.x-1, fruits[i].p.y, fruits[i].p.x+1, fruits[i].p.y+2, 0x20);
+				fillBox(fruits[i].p.x-1, fruits[i].p.y, fruits[i].p.x+1, fruits[i].p.y+FR_RIPE_DIA, 0x20);
 				break;
 			default:	// どれでもなくなったとき
 				break;
@@ -362,7 +392,58 @@ void drop_fruits() {
 	}
 	
 }
+// フルーツとカゴの枠との当たり判定
+void check_collision_basket_fruit(Fruit *fr)
+{
+	char fr_y;
+	char x;
+	fr_y = (*fr).p.y + FR_RIPE_DIA;
 
+	for (x=(*fr).p.x+FR_RIPE_R-1; x>=(*fr).p.x-1; x--) {
+		if (pat[fr_y][x] == BASKET_FRAME_COLOR || pat[fr_y][x] == HVESTER_COLOR) {
+			// バウンドさせる
+			(*fr).f = FR_BOUND_F;
+			(*fr).p_prev.y = (*fr).p.y;
+		}
+	}
+}
+void draw_atari()
+{
+	char i;
+	char fr_y;
+	Fruit *fr;
+	char x;
+	for (i=0; i<conf.fruits_n; i++) {
+		fr = &(fruits[i]);
+		fr_y = (*fr).p.y + FR_RIPE_DIA;
+		for (x=(*fr).p.x+FR_RIPE_R-1; x>=(*fr).p.x-1; x--) {
+			plot(x, fr_y, 0x00);
+		}
+	}
+}
+// フルーツとの当たり判定
+void check_collision_fruits() {
+	char i;
+	char y;
+	Fruit *fr;
+
+	for (i=0; i<conf.fruits_n; i++) {
+		fr = &(fruits[i]);
+		// もしカゴの枠ならバウンド
+		if ((*fr).f != FR_DROPPING_F) {
+			(*fr).f = FR_DROPPING_F;
+		}
+		check_collision_basket_fruit(fr);
+
+		// もしカゴの中ならスコアプラス
+		if (pat[(int)(*fr).p.y][(int)(*fr).p.x] == BASKET_COLOR) {
+			score++;
+			set_fruit(i);
+		}
+		// RIPEの位置なら
+		//if (pat[(*fr).p.y][(*fr).p.x] == FR_COLOR_RIPE) 
+	}
+}
 //==============================
 // ゲームの初期化関数 INIT
 //==============================
@@ -398,6 +479,7 @@ void game_init()
 	set_fruit(0);
 
 	conf.level = 1;
+	score = 0;
 }
 
 // counterが1以上なら1減らし、
@@ -459,14 +541,16 @@ void game_main()
 	// フルーツを落とす
 	drop_fruits();
 
-	// 自機をうごかす
+	// 収穫者をうごかす
 	move_harvester();
+	move_basket();				// カゴをうごかす
 
 	// 当たり判定
-	check_collision();
+	check_collision_fruits();	// フルーツとの当たり判定
 	
 	// 画面クリア
 	draw_back();
+	//draw_atari();
 	// フルーツを描く
 	draw_fruits();
 	draw_basket();
