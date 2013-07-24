@@ -17,12 +17,12 @@
 //==============================
 #define chat_UP	5			// チャタリング防止用の空回しループ回数
 #define PLAYER_W	5
-#define PLAYER_H	11
+#define PLAYER_H	8
 #define PLAYER_SPEED	0.9
 
 #define ROAD_Y	(V_SIZE-PLAYER_H-3)
 #define PLAYER_X_DEF	5
-#define PLAYER_Y_DEF	ROAD_Y
+#define PLAYER_Y_DEF	ROAD_Y-PLAYER_H
 #define HVESTER_COLOR	0x70
 #define BASKET_FRAME_COLOR	0x10	// バスケットのフレームの色
 #define BASKET_COLOR	0x60	// バスケットのフレームの色
@@ -468,7 +468,7 @@ void game_init()
 	hvester.p_prev.x = hvester.p.x;
 	hvester.p_prev.y = hvester.p.y;
 	hvester.turnRight = 1;
-	basket.p.y = hvester.p.y + 1;
+	basket.p.y = hvester.p.y - 2;
 	basket.size.w = 6;
 	basket.size.h = 8;
 	draw_basket();
