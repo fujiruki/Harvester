@@ -39,7 +39,7 @@
 // NnctPicGameにはない
 // 独自の定数の宣言
 //===========================================
-#define SLEEP_TIME 40					// disp_frame()毎にsleepする時間[ms]。実機に合わせて調整する。
+#define SLEEP_TIME 25					// disp_frame()毎にsleepする時間[ms]。実機に合わせて調整する。
 #define REDISPLAY_FRAME 16		// 画面全体の描画間隔。1/60fps=0.0166[s]=17[ms]
 
 

@@ -1,0 +1,18 @@
+# gccとmakeが入っている環境で使えるmakefileです。
+# 「make」というコマンドが入っていれば使えます。
+# make     ---> コンパイル
+# make run ---> コンパイルして実行
+
+OUTNAME = game.exe
+
+$(OUTNAME) : main.obj emu.obj
+	link emu.obj main.obj  /OUT:$(OUTNAME)
+
+main.obj : main.h main.c
+	cl /c main.c
+
+emu.obj : emu.h emu.c
+	cl /c emu.c
+
+run : $(OUTNAME)
+	./$(OUTNAME)

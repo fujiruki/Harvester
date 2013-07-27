@@ -257,15 +257,40 @@ void mouse(int button, int state, int x, int y)
 			break;
 	}
 }
+
+/*
 // 実機上でのmain()の中のループの中身。
 void *emu_loop(void* arg)
 {
-	game_init();
+	harvester_init();
 	while (EXIT == 0) {
-		game_main();
+		harvester_main();
 		disp_frame();
 	}
 }
+*/
+
+// 実機上でのmain()の中のループの中身。
+#ifdef __linux__
+void *emu_loop(void *arg) {
+#else
+unsigned __stdcall emu_loop(void *arg) {
+#endif
+
+	harvester_init();
+	while (EXIT == 0) {
+		harvester_main();
+		disp_frame();
+	}
+
+#ifdef __linux__
+	return;
+#else
+	return 0;
+#endif
+}
+
+
 
 // 画面全体を再描画する処理（REDISPLAY_FRAME間隔で呼び出される）
 void display_loop()
@@ -320,6 +345,7 @@ void init_emu(int *argc, char *argv[])
 	}
 }
 
+/*
 int main(int argc, char *argv[])
 {
 	pthread_t game_thread;
@@ -338,6 +364,44 @@ int main(int argc, char *argv[])
 	glutMainLoop();
 	return 0;
 }
+*/
+int main(int argc, char *argv[])
+{
+#ifdef __linux__
+	pthread_t game_thread;
+#else
+	int game_thread;
+	unsigned dummy;
+#endif
+	int game_thread_status;
+
+	init_emu(&argc, argv);
+
+
+	// ゲームループを別スレッドで回す
+#ifdef __linux__
+	game_thread_status = pthread_create(&game_thread, NULL, emu_loop, 0);
+#else // Windowsでマルチスレッド
+	game_thread = _beginthreadex(NULL, 0, emu_loop, (void*)0,0, &dummy);
+#endif
+
+	// マルチスレッドのエラー処理
+#ifdef __linux__
+	if (game_thread_status!=0) {
+		fprintf(stderr, "pthreadでのエラー");
+		exit(-1);
+	}
+#else
+	if (game_thread == 0) {
+		fprintf(stderr, "Error: %s", strerror(game_thread));
+	}
+#endif
+
+
+	glutMainLoop();
+	return 0;
+}
+
 
 // 二進数を表示する
 void print_bit(int n)
